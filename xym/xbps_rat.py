@@ -1,6 +1,6 @@
 import string
 
-from ratking import Rat, RatVersion, RatSelector
+from ratking import Rat, RatVersion, RatSelector, RatProvider
 from ratking.version_selector.clauses import AnyClause
 
 
@@ -27,7 +27,19 @@ class XbpsRat(Rat):
 
     @property
     def provides(self):
-        return self.raw_dict.get('shlib-provides', [])
+        if self.cache_provides is None:
+            self.cache_provides = [RatProvider(name=provider, parent=self) for provider in self.raw_dict.get('shlib-provides', [])]
+
+            for provide in self.raw_dict.get('provides', []):
+                parts = provide.rsplit('-', maxsplit=1)
+
+                if len(parts) == 1 or parts[1][0] not in string.digits:
+                    self.cache_provides.append(RatProvider(name=provide, parent=self))
+                    continue
+
+                self.cache_provides.append(RatProvider(name=parts[0], version=RatVersion.from_str(parts[1]), parent=self))
+
+        return self.cache_provides
 
     @property
     def needs(self):
